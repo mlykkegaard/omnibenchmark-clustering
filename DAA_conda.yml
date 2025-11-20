@@ -1,0 +1,95 @@
+id: DAA_conda
+description: DAA benchmark
+version: 1
+benchmarker: "Maria Lykkegaard-Kelstrup"
+storage: http://omnibenchmark.org:9000
+benchmark_yaml_spec: 0.04
+storage_api: S3
+storage_bucket_name: daaconda
+software_backend: conda
+software_environments:
+  cptac:
+    description: "cptac on py3.12.6"
+    conda: envs/cptac.yml
+    envmodule: cptac
+  DAA1:
+    description: "daa method 1 on py3.12.6"
+    conda: envs/daa1.yml
+    envmodule: daa1
+  DAA2:
+    description: "daa method 2 on py3.12.6"
+    conda: envs/daa2.yml
+    envmodule: daa2
+metric_collectors:
+  - id: plotting
+    name: "Single-backend metric collector."
+    software_environment: "?"
+    repository:
+      url: https://github.com/imallona/daa_report
+      commit: ?
+    inputs:
+      - metrics.scores
+    outputs:
+      - id: plotting.html
+        path: "{input}/{name}/plotting_report.html"
+stages:
+  ## daa data ##########################################################
+
+  - id: data
+    modules:
+      - id: CPTAC
+        name: "CPTAC datasets, from https://doi.org/10.1016/j.ccell.2023.06.009"
+        software_environment: "cptac"
+        repository:
+          url: https://github.com/imallona/daa_data
+          commit: ?
+        parameters:
+          - values: ?
+    outputs:
+      - id: data.matrix
+        path: "{input}/{stage}/{module}/{params}/{dataset}.data.gz"
+
+  ## daa methods ###################################################################
+  
+  - id: daa
+    modules:
+      - id: daa1
+        name: "daa1 algorithm"
+        software_environment: "daa1"
+        repository:
+          url: https://github.com/mlykkegaard/daa1
+          commit: ?
+        parameters:
+          - values: ?
+      - id: daa2
+        name: "daa2"
+        software_environment: "daa2"
+        repository:
+          url: https://github.com/mlykkegaard/daa2
+          commit: ?
+        parameters:
+          - values: ?
+    inputs:
+      - entries:
+          - data.matrix
+    outputs:
+      - id: daa.predicted
+        path: "{input}/{stage}/{module}/{params}/{dataset}_daa.gz"
+
+  - id: metrics #ground truth
+    modules:
+      - id: partition_metrics
+        name: "daa partition metrics"
+        software_environment: "?"
+        repository:
+          url: https://github.com/mlykkegaard/daa_metrics
+          commit: ?
+        parameters:
+          - values: ["--metric", "overlap"]
+    inputs:
+      - entries:
+          - daa.predicted
+          - daa.true?
+    outputs:
+      - id: metrics.scores
+        path: "{input}/{stage}/{module}/{params}/{dataset}.scores.gz"
